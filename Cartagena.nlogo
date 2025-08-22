@@ -8,6 +8,7 @@ globals [
   moved-this-tick
   infra_servicios-raster
   infra_transporte-raster
+  flood-raster      ; agregar para el raster del flood
   moved-count
   expansion
   tiempo-setup    ; Solo para ver tiempos
@@ -30,8 +31,8 @@ patches-own [
 
 turtles-own [
   group          ; Group number (estrato) to which the human belongs
-  diffcount      ; Number of neighbors from a different group
-  upset?         ; Indicates if the human is uncomfortable in their location
+  ; diffcount      ; Number of neighbors from a different group
+  ; upset?         ; Indicates if the human is uncomfortable in their location
   moved?         ; track if turtle moved this tick
 
 ]
@@ -44,22 +45,6 @@ to setup
   clear-turtles
   set moved-count 0
   cargar-shapefiles
-  set_limit_available
-  ;cargar-raster
-  createHumans
-  set tiempo-setup timer
-  print(word "Tardo: " tiempo-setup "segundos.")
-end
-
-to setup-Exp
-  reset-timer
-  clear-all
-  ;resize-world -1500 1500 -1500 1500 ; high resoution
-  resize-world -150 150 -150 150  ; low resolution
-  reset-ticks
-  clear-turtles
-  set moved-count 0
-  cargar-shapefiles2
   set_limit_available
   cargar-raster
   createHumans
@@ -93,20 +78,10 @@ to capacity_assignm
 end
 
 to set_limit_available
-  ifelse general? [
-    let total_patches patches with [(uso = "residencial") or (expansion? and uso = "expansion") and flood = 0]
-    let total_patches_num count total_patches
-    let porcentage not_available * total_patches_num / 100
-    ask n-of porcentage total_patches
-  [
-    set available? false
-  ]
-  ]
-  [
-    foreach [1 2 3 4 5 6] [
+  foreach [1 2 3 4 5 6] [
       [x] ->
       let total_patches patches with [
-        (uso = "residencial") or (expansion? and uso = "expansion") and flood = 0 and estrato = x
+        (uso = "residencial") or (uso = "expansion") and flood = 0 and estrato = x
       ]
       let total_patches_num count total_patches
       let porcentage not_available * total_patches_num / 100
@@ -115,7 +90,6 @@ to set_limit_available
         set available? false
       ]
     ]
-  ]
 end
 
 to cargar-shapefiles
@@ -124,17 +98,27 @@ to cargar-shapefiles
     set pcolor gray - 2
   ]
   ; Call everything!
-  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT.shp"
-  gis:apply-coverage manzanas-shp "FLOOD" flood
-  gis:apply-coverage manzanas-shp "USO" uso
-  gis:apply-coverage manzanas-shp "ESTRATO" estrato
+  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT6.shp"
+  set flood-raster gis:load-dataset "To_Model/floodedRast.asc"
+  gis:apply-raster flood-raster flood
+  gis:apply-coverage manzanas-shp "GRUPO" estrato
+
+  ifelse Expansion_Type = "Sin" [
+    gis:apply-coverage manzanas-shp "USO" uso
+  ][
+    ifelse Expansion_Type = "Normal" [
+    gis:apply-coverage manzanas-shp "USOBASE" uso
+    ][gis:apply-coverage manzanas-shp "USOEXTEND" uso]
+  ]
 
   ask patches [ ; modificado para eficiencia, evitar preguntar a todos los patches
     if member? flood [0 1] [
       set state flood
       set pcolor item flood [gray cyan]
     ]
-    if flood = 0 [if ((uso = "residencial") or (expansion? and uso = "expansion")) [set available? true]]
+    if flood = 0 [if ((uso = "residencial") or (uso = "expansion")) [set available? true]]
+    if uso = "expansion" [
+      set pcolor pink]
     if is-string? estrato [
       set estrato read-from-string substring estrato 1 2]
   ]
@@ -150,7 +134,7 @@ to cargar-shapefiles2
     set pcolor gray - 2
   ]
   ; Cargar todo!
-  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT5.shp"
+  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT4.shp"
   gis:apply-coverage manzanas-shp "FLOOD" flood
   gis:apply-coverage manzanas-shp "GRUPO" estrato
   gis:apply-coverage manzanas-shp "USO" uso
@@ -160,9 +144,9 @@ to cargar-shapefiles2
       set state flood
       set pcolor item flood [gray cyan]
       ;set available? true
-      ;if ((uso = "residencial") or (expansion? and uso = "expansion")) [set available? true]
+      ;if ((uso = "residencial") or (uso = "expansion")) [set available? true]
     ]
-    if flood = 0 [if ((uso = "residencial") or (expansion? and uso = "expansion")) [set available? true]]
+    if flood = 0 [if ((uso = "residencial") or (uso = "expansion")) [set available? true]]
     if uso = "expansion" [
       set pcolor pink]
     if is-string? estrato [
@@ -223,7 +207,7 @@ to createHumans
 
   ; Assign a color to each group for visualization
   let colores [red blue green orange brown magenta]
-  ask turtles [
+  ask turtles [;1   2     3     4      5      6
     set color item (group - 1) colores
   ]
 
@@ -264,16 +248,15 @@ end
 to move
   ask turtles [
     set moved? false
-    set diffcount count (turtles-on neighbors) with [group != [group] of myself]
-    set upset? diffcount > vc
+    ; set diffcount count (turtles-on neighbors) with [group != [group] of myself]
 
-    if upset? or [flood] of patch-here = 1 [
+    if [flood] of patch-here = 1 [
       let opciones patches with [
         estrato = [group] of myself and
-        ((uso = "residencial") or (expansion? and uso = "expansion")) and
-        flood = 0 and
-        available? = true and
-        count turtles-here < capacity
+        ((uso = "residencial") or (uso = "expansion")) and
+        flood = 0 ;and
+        ; available? = true and
+        ; count turtles-here < capacity
       ]
 
       if any? opciones [
@@ -281,7 +264,6 @@ to move
         move-to destino
         set moved-count moved-count + 1
         set moved? true
-
       ]
     ]
   ]
@@ -290,10 +272,9 @@ end
 to moveEx
   ask turtles [
     set moved? false
-    set diffcount count (turtles-on neighbors) with [group != [group] of myself]
-    set upset? diffcount > vc
+    ; set diffcount count (turtles-on neighbors) with [group != [group] of myself]
 
-    if upset? or [flood] of patch-here = 1 [
+    if [flood] of patch-here = 1 [
       let priority1 10  ;; for infra_servicio
       let priority2 10  ;; for infra_transport
 
@@ -301,20 +282,17 @@ to moveEx
         ;; first filter patches by transport
         let opciones patches with [
           estrato = [group] of myself and
-          ((uso = "residencial") or (expansion? and uso = "expansion")) and
+          ((uso = "residencial") or (uso = "expansion")) and
           infra_transporte = priority1 and
           flood = 0 and
           available? = true and
           count turtles-here < capacity
         ]
-
         while [priority2 >= 1 and not moved?] [
           ;; narrow down opciones by infraestructure priority2
-          let opciones2 opciones with [
+          let disponibles opciones with [
             infra_servicios  = priority2
           ]
-
-          let disponibles opciones2 with [random-float 1.0 < emptyRatio]
 
           if any? disponibles [
             let destino one-of disponibles
@@ -328,6 +306,7 @@ to moveEx
         set priority1 priority1 - 1
         set priority2 10  ;; reset for next infra_servicios priority level
       ]
+    ;; MIGRAR? CONTAR
     ]
   ]
 end
@@ -348,15 +327,15 @@ to export-parameters
   let filena word "Outputs/" export-filename
   let filename word filena ".csv"
   file-open filename
-  file-print "expansion?,emptyRatio,vc,total-humans,moved-count"
-  file-print (word expansion? "," emptyRatio "," vc "," total-humans ","  moved-count)
+  file-print "total-humans,moved-count"
+  file-print (word total-humans ","  moved-count)
   file-close
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-242
+246
 10
-852
+856
 621
 -1
 -1
@@ -381,10 +360,10 @@ ticks
 30.0
 
 BUTTON
+13
 10
-20
-128
-53
+131
+43
 setup
 setup
 NIL
@@ -397,41 +376,11 @@ NIL
 NIL
 1
 
-SLIDER
-18
-205
-190
-238
-emptyRatio
-emptyRatio
-0
-1
-1.0
-0.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-17
-289
-189
-322
-vc
-vc
-1
-6
-6.0
-1
-1
-NIL
-HORIZONTAL
-
 BUTTON
-18
-468
-119
-501
+13
+51
+78
+84
 Go
 go
 NIL
@@ -445,10 +394,10 @@ NIL
 1
 
 MONITOR
-49
-138
-204
-183
+13
+305
+196
+350
 Number of households
 total-humans
 17
@@ -456,128 +405,90 @@ total-humans
 11
 
 MONITOR
-895
-50
-1043
-95
+871
+10
+1019
+55
 Households relocated
-count turtles with [\n  uso = \"residencial\" and flood = 0]
+count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\")) \n  and [flood] of patch-here = 0\n]
 17
 1
 11
 
 MONITOR
-887
-175
-963
-220
+869
+147
+939
+192
 Estrato 3
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 3\n] * 100) / count turtles with [group = 3]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\"))\n  and flood = 0 and\n  group = 3\n] * 100) / count turtles with [group = 3]
 1
 1
 11
 
 MONITOR
-888
-117
-962
-162
+870
+98
+940
+143
 Estrato 1
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 3\n] * 100) / count turtles with [group = 3]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\"))\n  and flood = 0 and\n  group = 1\n] * 100) / count turtles with [group = 1]
 1
 1
 11
 
 MONITOR
-968
-117
-1037
-162
+948
+98
+1018
+143
 Estrato 2
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 2\n] * 100) / count turtles with [group = 2]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\"))\n  and flood = 0 and\n  group = 2\n] * 100) / count turtles with [group = 2]
 1
 1
 11
 
 MONITOR
-968
-175
-1040
-220
+949
+148
+1019
+193
 Estrato 4
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 4\n] * 100) / count turtles with [group = 4]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\")) \n  and flood = 0 and\n  group = 4\n] * 100) / count turtles with [group = 4]
 1
 1
 11
 
 MONITOR
-887
-233
-961
-278
+869
+197
+939
+242
 Estrato 5
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 5\n] * 100) / count turtles with [group = 5]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\"))\n  and flood = 0 and\n  group = 5\n] * 100) / count turtles with [group = 5]
 1
 1
 11
 
 MONITOR
-967
-232
-1039
-277
+949
+197
+1020
+242
 Estrato 6
-(count turtles with [\n  uso = \"residencial\" and flood = 0 and\n  estrato = 6\n] * 100) / count turtles with [group = 6]
+(count turtles with [\n  ((uso = \"residencial\") or (uso = \"expansion\"))\n  and flood = 0 and\n  group = 6\n] * 100) / count turtles with [group = 6]
 1
 1
 11
 
 TEXTBOX
-912
 14
-1062
-42
------------------------\nPorcentaje por estrato
+269
+197
+311
+Porcentaje de patches deshabilitados (0= ninguno; 100= todos)
 11
 0.0
-1
-
-TEXTBOX
-27
-241
-177
-275
-percentage of households enabled (0= none; 1= all)
-11
-0.0
-1
-
-SWITCH
-32
-379
-159
-412
-expansion?
-expansion?
-0
-1
--1000
-
-BUTTON
-9
-63
-127
-96
-NIL
-setup-Exp
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
 1
 
 INPUTBOX
@@ -603,10 +514,10 @@ export-enabled
 -1000
 
 BUTTON
-16
-519
-122
-552
+13
+92
+78
+125
 Go Extend
 goEx
 NIL
@@ -620,81 +531,31 @@ NIL
 1
 
 TEXTBOX
-135
-19
+15
+184
+167
+226
+Sin: Sin expansion\nNormal: Expansion moderada\nExtendida: Expansion fuerte
+11
+0.0
+1
+
+TEXTBOX
+95
+53
 244
-117
-Households with less detail\n\nhouseholds with more detail
+95
+Without transportation and infrastructure variables
 11
 0.0
 1
 
 TEXTBOX
-13
-107
-231
-135
-----------------------------------
-11
-0.0
-1
-
-TEXTBOX
-24
-328
-213
-370
-How many different \"estratos\" the households supports around them
-11
-0.0
-1
-
-TEXTBOX
-23
-425
-225
-453
-Does it include expansion areas?
-11
-0.0
-1
-
-TEXTBOX
-14
-447
-230
-475
-----------------------------------
-11
-0.0
-1
-
-TEXTBOX
-129
-465
-245
-507
-Without transportation and infrastructure variables?
-11
-0.0
-1
-
-TEXTBOX
-130
-523
-241
-551
+95
+95
+232
+123
 With transportation and infrastructure variables?
-11
-0.0
-1
-
-TEXTBOX
-17
-566
-256
-594
-----------------------------------
 11
 0.0
 1
@@ -710,10 +571,10 @@ Do you need to export the result?
 1
 
 MONITOR
-871
-297
-957
-342
+12
+361
+98
+406
 NIL
 tiempo-setup
 17
@@ -721,10 +582,10 @@ tiempo-setup
 11
 
 MONITOR
-992
-300
-1061
-345
+110
+362
+196
+407
 NIL
 tiempo-go
 17
@@ -732,10 +593,10 @@ tiempo-go
 11
 
 BUTTON
-1144
-90
-1230
-123
+144
+10
+234
+44
 NIL
 reset-pop
 NIL
@@ -749,30 +610,39 @@ NIL
 1
 
 SLIDER
-1076
-143
-1248
-176
+14
+231
+196
+264
 not_available
 not_available
 0
 100
-50.0
+0.0
 25
 1
 NIL
 HORIZONTAL
 
-SWITCH
-1177
-226
-1280
-259
-general?
-general?
-0
+CHOOSER
+13
+135
+156
+180
+Expansion_Type
+Expansion_Type
+"Sin" "Normal" "Extendida"
+2
+
+TEXTBOX
+871
+61
+1021
+89
+Porcentaje de agentes reubicados por estrato
+11
+0.0
 1
--1000
 
 @#$#@#$#@
 ## WHAT IS IT?
