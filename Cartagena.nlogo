@@ -13,6 +13,8 @@ globals [
   expansion
   tiempo-setup    ; Solo para ver tiempos
   tiempo-go       ; Solo para ver tiempos
+  doc-loaded?     ; flag to avoid loading the same documents each setup
+  last-exp-type   ; flag to know the last exp type used
 ]
 
 patches-own [
@@ -39,6 +41,13 @@ turtles-own [
 
 to setup
   reset-timer
+
+  if not is-boolean? doc-loaded? [
+    set doc-loaded? false
+    set last-exp-type ""
+  ]
+
+  ifelse (not doc-loaded?) or (Expansion_Type != last-exp-type) [
   clear-all
   ;resize-world -150 150 -150 150
   reset-ticks
@@ -49,7 +58,10 @@ to setup
   cargar-raster
   createHumans
   set tiempo-setup timer
+  set doc-loaded? true
+  set last-exp-type Expansion_Type
   print(word "Tardo: " tiempo-setup "segundos.")
+  ][reset-pop]
 end
 
 to reset-pop
@@ -128,40 +140,9 @@ to cargar-shapefiles
 
 end
 
-to cargar-shapefiles2
-  set area-shp gis:load-dataset "To_Model/areaproject2.shp"
-  ask patches gis:intersecting area-shp [
-    set pcolor gray - 2
-  ]
-  ; Cargar todo!
-  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT4.shp"
-  gis:apply-coverage manzanas-shp "FLOOD" flood
-  gis:apply-coverage manzanas-shp "GRUPO" estrato
-  gis:apply-coverage manzanas-shp "USO" uso
-
-  ask patches [ ; modificado para eficiencia, evitar preguntar a todos los patches
-    if member? flood [0 1] [
-      set state flood
-      set pcolor item flood [gray cyan]
-      ;set available? true
-      ;if ((uso = "residencial") or (uso = "expansion")) [set available? true]
-    ]
-    if flood = 0 [if ((uso = "residencial") or (uso = "expansion")) [set available? true]]
-    if uso = "expansion" [
-      set pcolor pink]
-    if is-string? estrato [
-      set estrato read-from-string substring estrato 1 2]
-  ]
-  gis:set-world-envelope gis:envelope-of area-shp
-  ;set-patch-size 0.2 ; high resolution
-  set-patch-size 2 ; low resolution
-  capacity_assignm
-
-end
-
 to cargar-raster
   ;; Load and apply raster data
-  set infra_servicios-raster gis:load-dataset "To_Model/infra_servicios.asc"
+  set infra_servicios-raster gis:load-dataset "To_Model/infra_servicios3.asc"
   ;gis:apply-coverage infra_servicios-raster "band1" infra_servicios
   gis:apply-raster infra_servicios-raster infra_servicios
 
@@ -224,22 +205,12 @@ end
 to go
   if ticks = 0 [ reset-timer ]
   tick
-  move
+  ifelse RunMode = "Normal" [move][moveEx]
+  ;move
   show "No more humans can move. Simulation stopped."
-  export-human-locations
-  export-parameters
-  set tiempo-go timer
-  print (word "Tiempo de simulación: " tiempo-go " segundos.")
-  stop
-end
-
-to goEx
-  if ticks = 0 [ reset-timer ]
-  tick
-  moveEx
-  show "No more humans can move. Simulation stopped."
-  export-human-locations
-  export-parameters
+  ;export-human-locations
+  ;export-parameters
+  export-matrix-groups
   set tiempo-go timer
   print (word "Tiempo de simulación: " tiempo-go " segundos.")
   stop
@@ -331,6 +302,41 @@ to export-parameters
   file-print (word total-humans ","  moved-count)
   file-close
 end
+
+to export-matrix-groups
+  let world-matrix []
+  foreach reverse sort remove-duplicates [ pycor ] of patches [ y_cor ->
+    let row []
+
+    foreach sort remove-duplicates [ pxcor ] of patches [ x_cor ->
+      let p patch x_cor y_cor
+
+      ;; start a vector of 6 zeros
+      let vec (list 0 0 0 0 0 0)
+
+      ask turtles-on p [
+        let g group
+        set vec replace-item (g - 1) vec (item (g - 1) vec + 1)
+      ]
+      set row lput vec row
+    ]
+    set world-matrix lput row world-matrix
+  ]
+
+  ;; export as CSV
+  let filename (word "Outputs/matrix-groups-run-" behaviorspace-run-number
+                     "-type-" Expansion_Type
+                     "-mode-" RunMode ".csv")
+  file-open filename
+
+  foreach world-matrix [ row ->
+    let row-strings map [ vec -> (word "[" (reduce [ [a b] -> (word a " " b) ] vec) "]") ] row
+    let line reduce [ [a b] -> (word a ";" b) ] row-strings
+    file-print line
+  ]
+
+  file-close
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 246
@@ -362,7 +368,7 @@ ticks
 BUTTON
 13
 10
-131
+151
 43
 setup
 setup
@@ -377,10 +383,10 @@ NIL
 1
 
 BUTTON
-13
-51
-78
-84
+168
+10
+236
+43
 Go
 go
 NIL
@@ -395,9 +401,9 @@ NIL
 
 MONITOR
 13
-305
+334
 196
-350
+379
 Number of households
 total-humans
 17
@@ -483,9 +489,9 @@ Estrato 6
 
 TEXTBOX
 14
-269
+298
 197
-311
+340
 Porcentaje de patches deshabilitados (0= ninguno; 100= todos)
 11
 0.0
@@ -513,49 +519,22 @@ export-enabled
 1
 -1000
 
-BUTTON
-13
-92
-78
-125
-Go Extend
-goEx
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 TEXTBOX
 15
-184
+213
 167
-226
+255
 Sin: Sin expansion\nNormal: Expansion moderada\nExtendida: Expansion fuerte
 11
 0.0
 1
 
 TEXTBOX
-95
-53
-244
-95
-Without transportation and infrastructure variables
-11
-0.0
-1
-
-TEXTBOX
-95
-95
-232
-123
-With transportation and infrastructure variables?
+14
+100
+213
+163
+Normal: Sin considerar transporte e infraestructura\nInfra and Transport: Considerando transporte e infraestructura
 11
 0.0
 1
@@ -572,9 +551,9 @@ Do you need to export the result?
 
 MONITOR
 12
-361
+390
 98
-406
+435
 NIL
 tiempo-setup
 17
@@ -583,37 +562,20 @@ tiempo-setup
 
 MONITOR
 110
-362
+391
 196
-407
+436
 NIL
 tiempo-go
 17
 1
 11
 
-BUTTON
-144
-10
-234
-44
-NIL
-reset-pop
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 SLIDER
 14
-231
+260
 196
-264
+293
 not_available
 not_available
 0
@@ -626,9 +588,9 @@ HORIZONTAL
 
 CHOOSER
 13
-135
-156
-180
+164
+152
+209
 Expansion_Type
 Expansion_Type
 "Sin" "Normal" "Extendida"
@@ -643,6 +605,16 @@ Porcentaje de agentes reubicados por estrato
 11
 0.0
 1
+
+CHOOSER
+12
+49
+152
+94
+RunMode
+RunMode
+"Normal" "Infra and Transport"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -990,6 +962,23 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="ExperimentTest" repetitions="2" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <postRun>export-matrix-groups</postRun>
+    <enumeratedValueSet variable="Expansion_Type">
+      <value value="&quot;Sin&quot;"/>
+      <value value="&quot;Normal&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="RunMode">
+      <value value="&quot;Normal&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="not_available">
+      <value value="0"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
