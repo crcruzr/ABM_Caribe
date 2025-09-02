@@ -29,7 +29,8 @@ patches-own [
   infra_transporte
   capacity      ; for how many agents can be in one patch!
   available?     ; To know if it is available!
-  turtles_here_count    ; for the raster
+  turh           ; Turtles in the patch! a list
+  valor          ; just for the final raster
 ]
 
 turtles-own [
@@ -69,7 +70,7 @@ to reset-pop
   reset-ticks
   clear-turtles
   createHumans
-  ask patches [set turtles_here_count 0]
+  ask patches [set turh [0 0 0 0 0 0]]
 end
 
 to capacity_assignm
@@ -126,7 +127,7 @@ to cargar-shapefiles
   ]
 
   ask patches [ ; modificado para eficiencia, evitar preguntar a todos los patches
-    set turtles_here_count 0
+    set turh [0 0 0 0 0 0]
     if member? flood [0 1] [
       set state flood
       set pcolor item flood [gray cyan]
@@ -231,7 +232,7 @@ to go
   ;export-parameters
   ;export-human-locations
   ;export-matrix-groups
-  ;export-raster
+  ;export-raster-group
   set tiempo-go timer
   print (word "Tiempo de simulación: " tiempo-go " segundos.")
   stop
@@ -256,7 +257,8 @@ to move
         set moved-count moved-count + 1
         set moved? true
         ask destino [
-            set turtles_here_count turtles_here_count + 1
+            let g [group] of myself
+            set turh replace-item (g - 1) turh ((item (g - 1) turh) + 1)
           ]
       ] [migrate]
     ]
@@ -281,7 +283,8 @@ to moveEx
         set moved-count moved-count + 1
         set moved? true
         ask destino [
-            set turtles_here_count turtles_here_count + 1
+            let g [group] of myself
+            set turh replace-item (g - 1) turh ((item (g - 1) turh) + 1)
           ]
         ][migrate]
      ]
@@ -334,13 +337,31 @@ to export-human-locations
 end
 
 to export-raster
-    let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
-                 "-type-" Expansion_Type
-                 "-mode-" RunMode ".asc")
+;  let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
+;                 "-type-" Expansion_Type
+;                 "-mode-" RunMode ".asc")
+;
+;  let test  gis:patch-dataset turtles_here_count
+;  gis:store-dataset test full-path
+;  print (word "Raster exported to" full-path)
+end
 
-  let test  gis:patch-dataset turtles_here_count
-  gis:store-dataset test full-path
-  print (word "Raster exported to" full-path)
+to export-raster-group
+  let grupos [1 2 3 4 5 6]
+  foreach grupos [ g ->
+    ;; 1. asignar valores a los patches según el grupo
+    ask patches [
+      set valor item (g - 1) turh
+    ]
+    ;; 2. exportar el raster con esa variable
+    let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
+                          "-type-" Expansion_Type
+                          "-mode-" RunMode
+                          "-group-" g ".asc")
+    let dataset gis:patch-dataset valor
+    gis:store-dataset dataset full-path
+    print (word "Raster exported to " full-path)
+  ]
 end
 
 to export-parameters
@@ -356,7 +377,6 @@ to export-matrix-groups
   let world-matrix []
   foreach reverse sort remove-duplicates [ pycor ] of patches [ y_cor ->
     let row []
-
     foreach sort remove-duplicates [ pxcor ] of patches [ x_cor ->
       let p patch x_cor y_cor
 
@@ -1012,18 +1032,17 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="ExperimentTest" repetitions="2" runMetricsEveryStep="true">
+  <experiment name="ExperimentTest" repetitions="3" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <postRun>export-raster</postRun>
+    <postRun>export-raster-group</postRun>
     <enumeratedValueSet variable="Expansion_Type">
       <value value="&quot;Sin&quot;"/>
-      <value value="&quot;Normal&quot;"/>
+      <value value="&quot;Normal &quot;"/>
       <value value="&quot;Extendida&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="RunMode">
       <value value="&quot;Normal&quot;"/>
-      <value value="&quot;Infra and Transport&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="not_available">
       <value value="0"/>
