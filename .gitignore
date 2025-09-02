@@ -10,3 +10,4 @@ Graphs/*
 !Documents/.gitkeep
 !Outputs/.gitkeep
 !Graphs/.gitkeep
+.Rproj.user

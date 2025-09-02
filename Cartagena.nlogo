@@ -1,4 +1,3 @@
-breed [humans human] ; Define the breed "humans" with type "human"
 extensions [GIS]
 
 globals [
@@ -15,6 +14,7 @@ globals [
   tiempo-go       ; Solo para ver tiempos
   doc-loaded?     ; flag to avoid loading the same documents each setup
   last-exp-type   ; flag to know the last exp type used
+  out_city        ; To know how many didnt find place so the left the city
 ]
 
 patches-own [
@@ -29,6 +29,7 @@ patches-own [
   infra_transporte
   capacity      ; for how many agents can be in one patch!
   available?     ; To know if it is available!
+  turtles_here_count    ; for the raster
 ]
 
 turtles-own [
@@ -68,6 +69,7 @@ to reset-pop
   reset-ticks
   clear-turtles
   createHumans
+  ask patches [set turtles_here_count 0]
 end
 
 to capacity_assignm
@@ -124,6 +126,7 @@ to cargar-shapefiles
   ]
 
   ask patches [ ; modificado para eficiencia, evitar preguntar a todos los patches
+    set turtles_here_count 0
     if member? flood [0 1] [
       set state flood
       set pcolor item flood [gray cyan]
@@ -200,17 +203,35 @@ to createHumans
   ;print (word "Group 6: " count turtles with [group = 6])
 
   set total-humans count turtles
+  set out_city [0 0 0 0 0 0]
+end
+
+to migrate
+  ;if not is-list? out_city [
+  ;  user-message (word "⚠ ERROR: out_city ya no es lista. Valor actual = " out_city
+  ;                       "  (tipo: " out_city ")")
+  ;  stop
+  ;]
+  ;if (group - 1) >= length out_city [
+  ;  user-message (word "⚠ ERROR: índice fuera de rango. group = " group
+  ;                       " out_city = " out_city)
+  ;  stop
+  ;]
+
+  ;let old-value item (group - 1) out_city
+  ;set out_city replace-item (group - 1) out_city (old-value + 1)
+  ;die
 end
 
 to go
   if ticks = 0 [ reset-timer ]
   tick
   ifelse RunMode = "Normal" [move][moveEx]
-  ;move
   show "No more humans can move. Simulation stopped."
-  ;export-human-locations
   ;export-parameters
-  export-matrix-groups
+  ;export-human-locations
+  ;export-matrix-groups
+  ;export-raster
   set tiempo-go timer
   print (word "Tiempo de simulación: " tiempo-go " segundos.")
   stop
@@ -229,13 +250,15 @@ to move
         ; available? = true and
         ; count turtles-here < capacity
       ]
-
-      if any? opciones [
+      ifelse any? opciones [
         let destino one-of opciones
         move-to destino
         set moved-count moved-count + 1
         set moved? true
-      ]
+        ask destino [
+            set turtles_here_count turtles_here_count + 1
+          ]
+      ] [migrate]
     ]
   ]
 end
@@ -243,8 +266,26 @@ end
 to moveEx
   ask turtles [
     set moved? false
-    ; set diffcount count (turtles-on neighbors) with [group != [group] of myself]
-
+    ifelse member? group [5 6][
+      if [flood] of patch-here = 1 [
+      let opciones patches with [
+        estrato = [group] of myself and
+        ((uso = "residencial") or (uso = "expansion")) and
+        flood = 0 and
+        ; available? = true and
+        count turtles-here < capacity
+      ]
+      ifelse any? opciones [
+        let destino one-of opciones
+        move-to destino
+        set moved-count moved-count + 1
+        set moved? true
+        ask destino [
+            set turtles_here_count turtles_here_count + 1
+          ]
+        ][migrate]
+     ]
+    ][
     if [flood] of patch-here = 1 [
       let priority1 10  ;; for infra_servicio
       let priority2 10  ;; for infra_transport
@@ -270,28 +311,36 @@ to moveEx
             move-to destino
             set moved? true
           ]
-
           set priority2 priority2 - 1
         ]
 
         set priority1 priority1 - 1
         set priority2 10  ;; reset for next infra_servicios priority level
       ]
-    ;; MIGRAR? CONTAR
+        if not moved? [migrate]
     ]
+   ]
   ]
 end
 
 to export-human-locations
-  if export-enabled [
-    let filename export-filename
-
-    let full-path word "Outputs/" filename
+    let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
+                 "-type-" Expansion_Type
+                 "-mode-" RunMode)
 
     let SegregationExport gis:turtle-dataset turtle-set turtles
     gis:store-dataset SegregationExport full-path
-    print (word "Shapefile exported to " export-filename)
-  ]
+    print (word "Shapefile exported to ")
+end
+
+to export-raster
+    let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
+                 "-type-" Expansion_Type
+                 "-mode-" RunMode ".asc")
+
+  let test  gis:patch-dataset turtles_here_count
+  gis:store-dataset test full-path
+  print (word "Raster exported to" full-path)
 end
 
 to export-parameters
@@ -383,9 +432,9 @@ NIL
 1
 
 BUTTON
-168
+165
 10
-236
+233
 43
 Go
 go
@@ -401,9 +450,9 @@ NIL
 
 MONITOR
 13
-334
+335
 196
-379
+380
 Number of households
 total-humans
 17
@@ -489,9 +538,9 @@ Estrato 6
 
 TEXTBOX
 14
-298
+299
 197
-340
+341
 Porcentaje de patches deshabilitados (0= ninguno; 100= todos)
 11
 0.0
@@ -521,19 +570,19 @@ export-enabled
 
 TEXTBOX
 15
-213
+100
 167
-255
+142
 Sin: Sin expansion\nNormal: Expansion moderada\nExtendida: Expansion fuerte
 11
 0.0
 1
 
 TEXTBOX
-14
-100
-213
-163
+15
+199
+214
+262
 Normal: Sin considerar transporte e infraestructura\nInfra and Transport: Considerando transporte e infraestructura
 11
 0.0
@@ -551,9 +600,9 @@ Do you need to export the result?
 
 MONITOR
 12
-390
+391
 98
-435
+436
 NIL
 tiempo-setup
 17
@@ -562,9 +611,9 @@ tiempo-setup
 
 MONITOR
 110
-391
+392
 196
-436
+437
 NIL
 tiempo-go
 17
@@ -573,9 +622,9 @@ tiempo-go
 
 SLIDER
 14
-260
+261
 196
-293
+294
 not_available
 not_available
 0
@@ -588,13 +637,13 @@ HORIZONTAL
 
 CHOOSER
 13
-164
+51
 152
-209
+96
 Expansion_Type
 Expansion_Type
 "Sin" "Normal" "Extendida"
-2
+0
 
 TEXTBOX
 871
@@ -607,10 +656,10 @@ Porcentaje de agentes reubicados por estrato
 1
 
 CHOOSER
-12
-49
-152
-94
+13
+148
+153
+193
 RunMode
 RunMode
 "Normal" "Infra and Transport"
@@ -966,13 +1015,15 @@ NetLogo 6.4.0
   <experiment name="ExperimentTest" repetitions="2" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <postRun>export-matrix-groups</postRun>
+    <postRun>export-raster</postRun>
     <enumeratedValueSet variable="Expansion_Type">
       <value value="&quot;Sin&quot;"/>
       <value value="&quot;Normal&quot;"/>
+      <value value="&quot;Extendida&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="RunMode">
       <value value="&quot;Normal&quot;"/>
+      <value value="&quot;Infra and Transport&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="not_available">
       <value value="0"/>
