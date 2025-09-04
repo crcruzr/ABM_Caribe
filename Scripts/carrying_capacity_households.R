@@ -178,17 +178,21 @@ p1 <-ggplot(tograph, aes(x = Estrato, y = householdNumber)) +
 
 p2 <- ggplot(tograph, aes(x = Estrato, y = householdNumber)) +
   geom_violin(fill = "skyblue", alpha = 0.5, color = "steelblue") +  # violin
-  geom_jitter(width = 0.05, alpha = 0.3, color = "darkred", size = 2) +  # all points
-  stat_summary(fun = mean, geom = "point", aes(color = "Mean"), size = 5,alpha = 0.7) +
-  stat_summary(fun = median, geom = "point", aes(color = "Median"), size = 5, alpha = 0.7) +
+  geom_jitter(width = 0.05, alpha = 0.3, color = "darkred", size = 0.5) +  # all points
+  stat_summary(fun = mean, geom = "point", aes(color = "Mean"), size = 1,alpha = 0.7) +
+  stat_summary(fun = median, geom = "point", aes(color = "Median"), size = 1, alpha = 0.7) +
   scale_color_manual(name = "", values = c("Mean" = "red", "Median" = "blue")) +
   labs(x = "", y = "Number of households") +
   theme_minimal(base_size = 14) +
   theme(
     legend.position = c(0.8, 0.9),
-    legend.text = element_text(size = 14))
+    legend.text = element_text(size = 14)
+    ) +
+  guides(color = guide_legend(override.aes = list(size = 3)))
 
-p1+p2 +  plot_annotation(title = "Household by Estrato - Pixel (80%) approach", theme = theme(plot.title = element_text(hjust = 0.5, face = 'bold')))
+flooded <- p1+p2 +  plot_annotation(title = "Household by Estrato - Pixel (80%) approach", theme = theme(plot.title = element_text(hjust = 0.5, face = 'bold')))
+ 
+ggsave("Outputs/HouseholdBStfloodedarea.png", plot = flooded, dpi = 300)
 
 
 ###----- Using all the households 
@@ -245,35 +249,43 @@ p3 <- ggplot(tograph2, aes(x = Estrato, y = householdNumber)) +
   theme_minimal()
 
 p4 <- ggplot(tograph2, aes(x = Estrato, y = householdNumber)) +
-  geom_jitter(width = 0.05, alpha = 0.3, color = "darkred", size = 2) +  # all points
+  geom_jitter(width = 0.05, alpha = 0.3, color = "darkred", size = 0.5) +  # all points
   geom_violin(fill = "skyblue", alpha = 0.5, color = "steelblue") +  # violin
-  stat_summary(fun = mean, geom = "point", aes(color = "Mean"), size = 3,alpha = 0.7) +
-  stat_summary(fun = median, geom = "point", aes(color = "Median"), size = 3, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", aes(color = "Mean"), size = 1,alpha = 0.7) +
+  stat_summary(fun = median, geom = "point", aes(color = "Median"), size = 1, alpha = 0.7) +
   scale_color_manual(name = "", values = c("Mean" = "red", "Median" = "blue")) +
   labs(x = "", y = "Number of households") +
   theme_minimal(base_size = 14) +
   theme(
     legend.position = c(0.8, 0.9),
-    legend.text = element_text(size = 14))
-p4
-p3+p4 +  plot_annotation(title = "Household by Estrato - Full city approach", theme = theme(plot.title = element_text(hjust = 0.5, face = 'bold')))
+    legend.text = element_text(size = 14)) +
+  guides(color = guide_legend(override.aes = list(size = 3)))
 
+full <- p3+p4 +  plot_annotation(title = "Household by Estrato - Full city approach", theme = theme(plot.title = element_text(hjust = 0.5, face = 'bold')))
+ggsave("Outputs/HouseholdBStFullCity_plot.png", plot = full, dpi = 300)
 
 # Summary table
 df_full_summ <- tograph2 %>%
   group_by(Estrato) %>%
   summarise(
-    mean_area = mean(householdNumber, na.rm = TRUE),
-    median_area = median(householdNumber, na.rm = TRUE),
+    nim = min(householdNumber, na.rm = TRUE),
+    mean= mean(householdNumber, na.rm = TRUE),
+    median = median(householdNumber, na.rm = TRUE),
     #mode_area = Mode(householdNumber),
-    sd_area = sd(householdNumber, na.rm = TRUE)
+    max = max(householdNumber, na.rm = TRUE),
+    sd = sd(householdNumber, na.rm = TRUE)
   )
+write_csv(df_full_summ, 'Outputs/summary_household_fullCity.csv')
 
-df_full_part <- tograph %>%
+
+df_part <- tograph %>%
   group_by(Estrato) %>%
   summarise(
-    mean_area = mean(householdNumber, na.rm = TRUE),
-    median_area = median(householdNumber, na.rm = TRUE),
-    #mode_area = Mode(householdNumber),
-    sd_area = sd(householdNumber, na.rm = TRUE)
+    nim = min(householdNumber, na.rm = TRUE),
+    mean = mean(householdNumber, na.rm = TRUE),
+    median = median(householdNumber, na.rm = TRUE),
+    max = max(householdNumber, na.rm = TRUE),
+    sd = sd(householdNumber, na.rm = TRUE)
   )
+
+write_csv(df_part, 'Outputs/summary_household_pixelapproach.csv')
