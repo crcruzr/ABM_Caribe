@@ -27,7 +27,7 @@ patches-own [
   residential-status
   infra_servicios
   infra_transporte
-  capacity      ; for how many agents can be in one patch!
+  capacity       ; for how many agents can be in one patch!
   available?     ; To know if it is available!
   turh           ; Turtles in the patch! a list
   valor          ; just for the final raster
@@ -70,6 +70,7 @@ to reset-pop
   reset-ticks
   clear-turtles
   createHumans
+  capacity_assignm_distrib
   ask patches [set turh [0 0 0 0 0 0]]
 end
 
@@ -89,6 +90,26 @@ to capacity_assignm
       set capacity random  max-capacity + 1
       if capacity < 1 [ set capacity 1 ]
     ]
+  ]
+end
+
+to capacity_assignm_distrib
+  ask patches [
+    ; con distribucion normal                  mean  std
+    if estrato = 1 [set capacity random-normal 36.4 111]
+    if estrato = 2 [set capacity random-normal 22.3 30.4]
+    if estrato = 3 [set capacity random-normal 153 186]
+    if estrato = 4 [set capacity random-normal 78.5 80.3]
+    if estrato = 5 [set capacity random-normal 41.9 57.3]
+    if estrato = 6 [set capacity random-normal 88.1 46.6]
+
+    ; con exponencial                                mean
+    ;if estrato = 1 [set capacity random-exponential 36.4]
+    ;if estrato = 2 [set capacity random-exponential 22.3]
+    ;if estrato = 3 [set capacity random-exponential 153 ]
+    ;if estrato = 4 [set capacity random-exponential 78.5]
+    ;if estrato = 5 [set capacity random-exponential 41.9]
+    ;if estrato = 6 [set capacity random-exponential 88.1]
   ]
 end
 
@@ -140,7 +161,7 @@ to cargar-shapefiles
   ]
   set-patch-size 2
   gis:set-world-envelope gis:envelope-of area-shp
-  capacity_assignm
+  capacity_assignm_distrib
 
 end
 
@@ -247,9 +268,9 @@ to move
       let opciones patches with [
         estrato = [group] of myself and
         ((uso = "residencial") or (uso = "expansion")) and
-        flood = 0 ;and
+        flood = 0 and
         ; available? = true and
-        ; count turtles-here < capacity
+        count turtles-here < capacity
       ]
       ifelse any? opciones [
         let destino one-of opciones
@@ -349,11 +370,9 @@ end
 to export-raster-group
   let grupos [1 2 3 4 5 6]
   foreach grupos [ g ->
-    ;; 1. asignar valores a los patches según el grupo
     ask patches [
       set valor item (g - 1) turh
     ]
-    ;; 2. exportar el raster con esa variable
     let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
                           "-type-" Expansion_Type
                           "-mode-" RunMode
@@ -379,10 +398,7 @@ to export-matrix-groups
     let row []
     foreach sort remove-duplicates [ pxcor ] of patches [ x_cor ->
       let p patch x_cor y_cor
-
-      ;; start a vector of 6 zeros
       let vec (list 0 0 0 0 0 0)
-
       ask turtles-on p [
         let g group
         set vec replace-item (g - 1) vec (item (g - 1) vec + 1)
@@ -392,7 +408,6 @@ to export-matrix-groups
     set world-matrix lput row world-matrix
   ]
 
-  ;; export as CSV
   let filename (word "Outputs/matrix-groups-run-" behaviorspace-run-number
                      "-type-" Expansion_Type
                      "-mode-" RunMode ".csv")
@@ -663,7 +678,7 @@ CHOOSER
 Expansion_Type
 Expansion_Type
 "Sin" "Normal" "Extendida"
-0
+2
 
 TEXTBOX
 871
@@ -683,7 +698,7 @@ CHOOSER
 RunMode
 RunMode
 "Normal" "Infra and Transport"
-0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1032,7 +1047,7 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="ExperimentTest" repetitions="3" runMetricsEveryStep="true">
+  <experiment name="ExperimentTest" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <postRun>export-raster-group</postRun>
@@ -1043,6 +1058,7 @@ NetLogo 6.4.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="RunMode">
       <value value="&quot;Normal&quot;"/>
+      <value value="&quot;Infra and Transport&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="not_available">
       <value value="0"/>
