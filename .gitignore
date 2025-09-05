@@ -11,3 +11,5 @@ Graphs/*
 !Outputs/.gitkeep
 !Graphs/.gitkeep
 .Rproj.user
+!Outputs/pixelapproach_80.csv
+!Outputs/pixelapproachFull.csv
