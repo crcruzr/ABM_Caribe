@@ -2,6 +2,7 @@ library(terra)
 library(dplyr)
 library(ggplot2)
 library(patchwork)
+library(purrr)
 
 #--- Calculate the number of household per "estrato" using an spacial approach
 
@@ -22,11 +23,10 @@ rasfil <-list.files('To_Model/Capas_Raster',
              pattern = '.tif$',
              full.names = T)
 
-r1 <- project(rast(rasfil[1]), crs(applE2)) #infra_servicios.tif
-r1 <-  crop(mask(r1, applE2), applE2)
-r2 <- project(rast(rasfil[2]), crs(applE2)) #infra_transporte.tif
-r2 <-  crop(mask(r2, applE2), applE2)
-
+r1 <- project(rast(rasfil[1]), crs(applEP2)) #infra_servicios.tif
+r1 <-  crop(mask(r1, applEP2), applEP2)
+r2 <- project(rast(rasfil[2]), crs(applEP2)) #infra_transporte.tif
+r2 <-  crop(mask(r2, applEP2), applEP2)
 
 ## proportions of household per pixel
 example <- rast("To_Model/Example_raster.asc")
@@ -42,28 +42,20 @@ plot(polygons)
 polygons <- polygons[-(nrow(polygons)), -1]
 polygons <- project(polygons, crs(aoi))
 
-applEP2.c <-
-  crop(applEP2, ext(polygons)) # Aoi extension because the shape cover all the country
-polygons <-
-  cbind(polygons, as.data.frame(matrix(
-    NA, nrow(polygons), ncol(applEP2.c) - ncol(polygons)
-  )))
+applEP2.c <-crop(applEP2, ext(polygons)) # Aoi extension because the shape cover all the country
+polygons <-cbind(polygons, as.data.frame(matrix(
+    NA, nrow(polygons), ncol(applEP2.c) - ncol(polygons))))
 
-names(polygons) <-
-  names(applEP2.c)
+names(polygons) <-names(applEP2.c)
 polygons$id <- 1:nrow(polygons)
 polygons$empty <- NA
 polygons$area_m2 <- NA
 polygons$area_percent <- NA
-polygons2 <-
-  data.frame(
-    id = 1:nrow(polygons),
-    COD_DANE_A = NA,
-    empty = NA,
-    area_m2 = NA,
-    area_percent = NA
-  )
-
+polygons2 <- data.frame(id = 1:nrow(polygons),
+                        COD_DANE_A = NA,
+                        empty = NA,
+                        area_m2 = NA,
+                        area_percent = NA)
 
 pb <-txtProgressBar(min = 0, max = 500, style = 3)  # style=3 shows percentage
 
@@ -91,25 +83,21 @@ for (i in 1:nrow(polygons)) {
 
 close(pb)  # close progress bar when done
 
-df_to_ccHsouse <-
-  right_join(as.data.frame(applEP2), polygons2, by = "COD_DANE_A")
-  df_to_ccHsouse2 <- df_to_ccHsouse[df_to_ccHsouse$empty == 'not', ]
+df_to_ccHsouse <- right_join(as.data.frame(applEP2), polygons2, by = "COD_DANE_A")
+df_to_ccHsouse2 <- df_to_ccHsouse[df_to_ccHsouse$empty == 'not', ]
 
 head(df_to_ccHsouse)
 table(df_to_ccHsouse$empty)
 
+## Matrix with: Categories based in the type of "uso", and also the most recurrent category pero polygon and their number of housedholds there.
 dfccHouse <- as.data.frame(df_to_ccHsouse2) |>
-  mutate(Uso = pmap_chr(
-    list(
+  mutate(Uso = pmap_chr(list(
       Residencial = TP9_1_USO,
       mixto = TP9_2_USO,
-      No_residencial = TP9_3_USO
-    ),
-    ~ {
+      No_residencial = TP9_3_USO),~ {
       vals <- c(...)        # capture values
       names(vals)[which.max(vals)]  # return name of column with max
-    }
-  )) |>
+    })) |>
   mutate(Estrato = pmap_chr( # extract household category (most frequent)
     list(
       E1 = TP19_EE_E1,
@@ -118,14 +106,10 @@ dfccHouse <- as.data.frame(df_to_ccHsouse2) |>
       E4 = TP19_EE_E4,
       E5 = TP19_EE_E5,
       E6 = TP19_EE_E6,
-      E0 = TP19_EE_E9
-    ),
-    ~ {
+      E0 = TP19_EE_E9 ),~ {
       vals2 <- c(...)
-      names(vals2)[which.max(vals2)]
-    }
-  ),
-  householdNumber = pmap_dbl( # extract household number
+      names(vals2)[which.max(vals2)]}),
+      householdNumber = pmap_dbl( # extract household number
     list(
       E1 = TP19_EE_E1,
       E2 = TP19_EE_E2,
@@ -133,14 +117,10 @@ dfccHouse <- as.data.frame(df_to_ccHsouse2) |>
       E4 = TP19_EE_E4,
       E5 = TP19_EE_E5,
       E6 = TP19_EE_E6,
-      E0 = TP19_EE_E9
-    ),
-    ~ {
+      E0 = TP19_EE_E9),~ {
       vals2 <- c(...)
-      max(vals2)
-    }
-  )) |>
-  select(
+      max(vals2)})) |>
+  select(  ## Select only certain celds in the final table
     COD_DANE_A,
     id,
     empty,
@@ -156,14 +136,19 @@ dfccHouse <- as.data.frame(df_to_ccHsouse2) |>
     TP19_EE_E3,
     TP19_EE_E4,
     TP19_EE_E5,
-    TP19_EE_E6
-  )
+    TP19_EE_E6)
 
 
 ## ---plots to explore the results 
+
+# Table with the polygons that have more than the 80% of the are inside of the pixel
 tograph <- dfccHouse |>
   filter(householdNumber > 0,
          area_percent > 80)
+
+write.csv(tograph, 'Outputs/pixelapproachFull.csv')
+write.csv(tograph, 'Outputs/pixelapproach_80.csv')
+
 
 ggplot(tograph, aes(x = Estrato, y = householdNumber)) +
   geom_violin(fill = "skyblue", alpha = 0.7) +
@@ -191,9 +176,7 @@ p2 <- ggplot(tograph, aes(x = Estrato, y = householdNumber)) +
   guides(color = guide_legend(override.aes = list(size = 3)))
 
 flooded <- p1+p2 +  plot_annotation(title = "Household by Estrato - Pixel (80%) approach", theme = theme(plot.title = element_text(hjust = 0.5, face = 'bold')))
- 
-ggsave("Outputs/HouseholdBStfloodedarea.png", plot = flooded, dpi = 300)
-
+ ggsave("Outputs/HouseholdBStfloodedarea.png", plot = flooded, dpi = 300)
 
 ###----- Using all the households 
 dfccHouseFull <- as.data.frame(applEP2) |>
@@ -201,13 +184,9 @@ dfccHouseFull <- as.data.frame(applEP2) |>
     list(
       Residencial = TP9_1_USO,
       mixto = TP9_2_USO,
-      No_residencial = TP9_3_USO
-    ),
-    ~ {
+      No_residencial = TP9_3_USO),~ {
       vals <- c(...)        # capture values
-      names(vals)[which.max(vals)]  # return name of column with max
-    }
-  )) |>
+      names(vals)[which.max(vals)]})) |>
   mutate(Estrato = pmap_chr( # extract household category (most frequent)
     list(
       E1 = TP19_EE_E1,
@@ -216,13 +195,9 @@ dfccHouseFull <- as.data.frame(applEP2) |>
       E4 = TP19_EE_E4,
       E5 = TP19_EE_E5,
       E6 = TP19_EE_E6,
-      E0 = TP19_EE_E9
-    ),
-    ~ {
+      E0 = TP19_EE_E9), ~ {
       vals2 <- c(...)
-      names(vals2)[which.max(vals2)]
-    }
-  ),
+      names(vals2)[which.max(vals2)]}),
   householdNumber = pmap_dbl( # extract household number
     list(
       E1 = TP19_EE_E1,
@@ -231,13 +206,9 @@ dfccHouseFull <- as.data.frame(applEP2) |>
       E4 = TP19_EE_E4,
       E5 = TP19_EE_E5,
       E6 = TP19_EE_E6,
-      E0 = TP19_EE_E9
-    ),
-    ~ {
+      E0 = TP19_EE_E9),~ {
       vals2 <- c(...)
-      max(vals2)
-    }
-  )) |>
+      max(vals2)}))|>
   select( COD_DANE_A, Uso, Estrato, householdNumber, TP19_EE_E1, TP19_EE_E2, TP19_EE_E3, TP19_EE_E4, TP19_EE_E5, TP19_EE_E6)
 
 tograph2 <- dfccHouseFull |>
