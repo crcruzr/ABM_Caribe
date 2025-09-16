@@ -71,61 +71,61 @@ to reset-pop
   clear-turtles
   createHumans
   capacity_assignm_distrib
+  set_limit_available
   ask patches [set turh [0 0 0 0 0 0]]
-end
-
-to capacity_assignm
-  ask patches [
-    let str estrato
-    ifelse is-string? str [
-      set str read-from-string str
-    ][
-      ifelse (is-number? str and ((str <= 0) or (str >= 0))) [
-      ][
-        set str 0
-      ]
-    ]
-    if str != 0 [
-      let max-capacity (15 - str)  ;; Revisar si tiene sentido!
-      set capacity random  max-capacity + 1
-      if capacity < 1 [ set capacity 1 ]
-    ]
-  ]
 end
 
 to capacity_assignm_distrib
   ask patches [
-    ; con distribucion normal                  mean  std
-    if estrato = 1 [set capacity random-normal 36.4 111]
-    if estrato = 2 [set capacity random-normal 22.3 30.4]
-    if estrato = 3 [set capacity random-normal 153 186]
-    if estrato = 4 [set capacity random-normal 78.5 80.3]
-    if estrato = 5 [set capacity random-normal 41.9 57.3]
-    if estrato = 6 [set capacity random-normal 88.1 46.6]
+    ; con distribucion normal   datos 80%      mean  std
+    ;if estrato = 1 [set capacity random-normal 6.6  29.89]
+    ;if estrato = 2 [set capacity random-normal 6.69 29.89 ]
+    ;if estrato = 3 [set capacity random-normal 16.51 30.85]
+    ;if estrato = 4 [set capacity random-normal 9.69 25.86]
+    ;if estrato = 5 [set capacity random-normal 6.74 13.90]
+    ;if estrato = 6 [set capacity random-normal 7.37 13.17]
 
-    ; con exponencial                                mean
-    ;if estrato = 1 [set capacity random-exponential 36.4]
-    ;if estrato = 2 [set capacity random-exponential 22.3]
-    ;if estrato = 3 [set capacity random-exponential 153 ]
-    ;if estrato = 4 [set capacity random-exponential 78.5]
-    ;if estrato = 5 [set capacity random-exponential 41.9]
-    ;if estrato = 6 [set capacity random-exponential 88.1]
+    ; con distribucion normal    datos full    mean  std
+    if estrato = 1 [set capacity random-normal 18.3 22.6]
+    if estrato = 2 [set capacity random-normal 24.22 17.73]
+    if estrato = 3 [set capacity random-normal 18.65 19.76]
+    if estrato = 4 [set capacity random-normal 15.09 25.33]
+    if estrato = 5 [set capacity random-normal 12.17 17.31]
+    if estrato = 6 [set capacity random-normal 12.27 16.25]
+
+    ; con exponencial           datos 80%            mean
+    ;if estrato = 1 [set capacity random-exponential 6.6]
+    ;if estrato = 2 [set capacity random-exponential 6.69]
+    ;if estrato = 3 [set capacity random-exponential 16.51]
+    ;if estrato = 4 [set capacity random-exponential 9.69]
+    ;if estrato = 5 [set capacity random-exponential 6.74]
+    ;if estrato = 6 [set capacity random-exponential 7.37]
+
+    ; con exponencial           datos full           mean
+    ;if estrato = 1 [set capacity random-exponential 18.3]
+    ;if estrato = 2 [set capacity random-exponential 24.22]
+    ;if estrato = 3 [set capacity random-exponential 18.65]
+    ;if estrato = 4 [set capacity random-exponential 15.09]
+    ;if estrato = 5 [set capacity random-exponential 12.17]
+    ;if estrato = 6 [set capacity random-exponential 12.27]
+
+    ; Segun ...
+    ;if uso = "residencial" [set capacity 50]
+    ;if uso = "expansion" [ set capacity 5]
+
+
   ]
 end
 
 to set_limit_available
   foreach [1 2 3 4 5 6] [
-      [x] ->
-      let total_patches patches with [
-        (uso = "residencial") or (uso = "expansion") and flood = 0 and estrato = x
-      ]
-      let total_patches_num count total_patches
-      let porcentage not_available * total_patches_num / 100
-      ask n-of porcentage total_patches
-      [
-        set available? false
-      ]
+    [x] ->
+    ask patches with [uso = "residencial" and flood = 0 and estrato = x]
+    [
+      ifelse random-float 1 > (not_available / 100)
+      [set available? true][set available? false]
     ]
+  ]
 end
 
 to cargar-shapefiles
@@ -134,7 +134,7 @@ to cargar-shapefiles
     set pcolor gray - 2
   ]
   ; Call everything!
-  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT6.shp"
+  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT7.shp"
   set flood-raster gis:load-dataset "To_Model/floodedRast.asc"
   gis:apply-raster flood-raster flood
   gis:apply-coverage manzanas-shp "GRUPO" estrato
@@ -253,7 +253,7 @@ to go
   ;export-parameters
   ;export-human-locations
   ;export-matrix-groups
-  ;export-raster-group
+  export-raster-group
   set tiempo-go timer
   print (word "Tiempo de simulación: " tiempo-go " segundos.")
   stop
@@ -269,7 +269,7 @@ to move
         estrato = [group] of myself and
         ((uso = "residencial") or (uso = "expansion")) and
         flood = 0 and
-        ; available? = true and
+        available? = true and
         count turtles-here < capacity
       ]
       ifelse any? opciones [
@@ -295,7 +295,7 @@ to moveEx
         estrato = [group] of myself and
         ((uso = "residencial") or (uso = "expansion")) and
         flood = 0 and
-        ; available? = true and
+        available? = true and
         count turtles-here < capacity
       ]
       ifelse any? opciones [
@@ -334,6 +334,10 @@ to moveEx
             let destino one-of disponibles
             move-to destino
             set moved? true
+            ask destino [
+              let g [group] of myself
+              set turh replace-item (g - 1) turh ((item (g - 1) turh) + 1)
+          ]
           ]
           set priority2 priority2 - 1
         ]
@@ -664,7 +668,7 @@ not_available
 not_available
 0
 100
-0.0
+100.0
 25
 1
 NIL
@@ -1047,21 +1051,18 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="ExperimentTest" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="ExperimentTest" repetitions="6" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <postRun>export-raster-group</postRun>
     <enumeratedValueSet variable="Expansion_Type">
-      <value value="&quot;Sin&quot;"/>
-      <value value="&quot;Normal &quot;"/>
       <value value="&quot;Extendida&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="RunMode">
-      <value value="&quot;Normal&quot;"/>
       <value value="&quot;Infra and Transport&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="not_available">
-      <value value="0"/>
+      <value value="50"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
