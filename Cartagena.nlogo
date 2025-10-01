@@ -43,12 +43,10 @@ turtles-own [
 
 to setup
   reset-timer
-
   if not is-boolean? doc-loaded? [
     set doc-loaded? false
     set last-exp-type ""
   ]
-
   ifelse (not doc-loaded?) or (Expansion_Type != last-exp-type) [
   clear-all
   ;resize-world -150 150 -150 150
@@ -56,9 +54,9 @@ to setup
   clear-turtles
   set moved-count 0
   cargar-shapefiles
-  set_limit_available
+  set_limit_available;
   cargar-raster
-  createHumans
+  createHumans;
   set tiempo-setup timer
   set doc-loaded? true
   set last-exp-type Expansion_Type
@@ -253,9 +251,11 @@ to go
   ;export-parameters
   ;export-human-locations
   ;export-matrix-groups
-  export-raster-group
+  ;export-raster-group
+  ;porcentages
   set tiempo-go timer
   print (word "Tiempo de simulación: " tiempo-go " segundos.")
+  ;tick
   stop
 end
 
@@ -388,12 +388,12 @@ to export-raster-group
 end
 
 to export-parameters
-  let filena word "Outputs/" export-filename
-  let filename word filena ".csv"
-  file-open filename
-  file-print "total-humans,moved-count"
-  file-print (word total-humans ","  moved-count)
-  file-close
+  ;let filena word "Outputs/" export-filename
+  ;let filename word filena ".csv"
+  ;file-open filename
+  ;file-print "total-humans,moved-count"
+  ;file-print (word total-humans ","  moved-count)
+  ;file-close
 end
 
 to export-matrix-groups
@@ -421,6 +421,44 @@ to export-matrix-groups
     let row-strings map [ vec -> (word "[" (reduce [ [a b] -> (word a " " b) ] vec) "]") ] row
     let line reduce [ [a b] -> (word a ";" b) ] row-strings
     file-print line
+  ]
+
+  file-close
+end
+
+to porcentages
+  ; ruta del archivo
+  let csv-path "Outputs/perc.csv"
+
+  ; comprobar si el archivo existe
+  let file-exists file-exists? csv-path
+
+  ; abrir archivo en modo escritura (si existe, NetLogo no lo borra hasta cerrar)
+  file-open csv-path
+
+  ; solo escribir cabecera si el archivo NO existía
+  if not file-exists [
+    file-type "run,Expansion_Type,RunMode,grupo,residencial_flood0,expansion_flood0,flood1"
+    file-print ""
+  ]
+
+  ; iterar sobre cada grupo distinto
+  foreach remove-duplicates [group] of turtles [
+    g ->
+      let residencial_flood0 count turtles with [
+        group = g and uso = "residencial" and flood = 0
+      ]
+      let expansion_flood0 count turtles with [
+        group = g and uso = "expansion" and flood = 0
+      ]
+      let flood1 count turtles with [
+        group = g and flood = 1
+      ]
+
+      ; escribir fila
+      file-type (word behaviorspace-run-number "," Expansion_Type "," RunMode ","
+                 g "," residencial_flood0 "," expansion_flood0 "," flood1)
+      file-print ""
   ]
 
   file-close
@@ -585,28 +623,6 @@ Porcentaje de patches deshabilitados (0= ninguno; 100= todos)
 0.0
 1
 
-INPUTBOX
-15
-655
-200
-715
-export-filename
-HousesholdLwithExp-302VH
-1
-0
-String
-
-SWITCH
-18
-608
-202
-641
-export-enabled
-export-enabled
-1
-1
--1000
-
 TEXTBOX
 15
 100
@@ -623,16 +639,6 @@ TEXTBOX
 214
 262
 Normal: Sin considerar transporte e infraestructura\nInfra and Transport: Considerando transporte e infraestructura
-11
-0.0
-1
-
-TEXTBOX
-23
-583
-260
-611
-Do you need to export the result?
 11
 0.0
 1
@@ -668,7 +674,7 @@ not_available
 not_available
 0
 100
-100.0
+0.0
 25
 1
 NIL
@@ -707,15 +713,67 @@ RunMode
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+This model simulates the relocation of households after flood events in a city. The goal is to predict potential migration hotspots and evaluate how households from different socio-economic strata redistribute in urban space when their residential areas are affected by floods.
+
+The analysis is conducted at the household level. Each patch in the environment represents approximately 1.5 hectares. Agents represent households belonging to different economic groups (strata), and only those located in flooded areas are created. The model is predictive: it is designed to identify likely relocation patterns under different assumptions about land use and decision-making.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+The model integrates geospatial data in the form of shapefiles and raster layers:
+
+1. Shapefiles provide information on socio-economic categories (generated in a different research project) and land-use types.
+
+2. Rasters characterize each patch in terms of transport and infrastructure availability, and whether the area is flooded or not.
+
+Agents (households) are initially created only in flooded patches. They must then relocate according to different rules:
+
+1. Normal mode (RunMode = "Normal"): households move randomly to an available patch of the same socio-economic level.
+
+2. Extended mode (RunMode = "Ex"): households select patches based on infrastructure and transport values, prioritizing areas with better accessibility.
+
+Three land-use scenarios can be selected (Expansion_Type):
+
+1. Restricted (Sin) – households can only relocate within existing residential areas of the city.
+
+2. Moderate expansion (Normal) – relocation includes additional expansion areas defined by the municipality.
+
+3. Extensive expansion (Extended) – households can relocate to almost any area, even if its legal use is not residential.
+
+The relocation stops when no more households can move.
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Key parameters:
+
+- Expansion_Type: defines the land-use scenario (restricted, moderate expansion, extensive expansion).
+
+- RunMode: defines whether household relocation is random or based on infrastructure and transport.
+
+- not_available: defines the percentage of households by economic group that are not available in the simulation (representing limited housing supply).
+
+Recommended settings:
+
+- Expansion_Type = Extensive
+
+- RunMode = Extended (with infrastructure and transport)
+
+- not_available between 50–75%
+
+These values reflect more realistic conditions, though there are no “ideal” parameters.
+
+Outputs:
+
+- Number of displaced households
+
+- Distribution of relocated households by socio-economic group
+
+- Percentages of households that remain unmoved
+
+The model provides several export functions:
+
+- export-percentages: generates a CSV file with the number of agents that migrated.
+
+- export-raster-group: generates rasters by group, showing the number and location of relocated households.
 
 ## THINGS TO NOTICE
 
@@ -723,19 +781,35 @@ RunMode
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Experimenting with availability of housing (not_available) produces interesting outcomes. For instance:
+
+- Compare relocation results when availability is very low (close to 0%) versus very high (close to 100%).
+
+- Observe how different socio-economic groups are disproportionately affected by availability constraints.
+
+- Test how land-use scenarios (restricted vs. expansion) interact with limited housing supply.
+
+- Compare Normal vs. Extended modes to evaluate the influence of infrastructure and transport priorities.
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+Several extensions are possible:
+
+- Dynamic climate projections – integrate multiple flood events at different time steps using climate models.
+
+- Social segregation dynamics – allow cross-stratum relocation (e.g., group 1 households occasionally relocating to group 2 or 3 areas). This could enable the emergence of segregation patterns similar to Schelling-type models.
+
+- Housing market pressure – include housing costs and economic pressures as new households enter and concentrate in particular areas.
 
 ## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+This model does not use iterative cycles of relocation. Agents move only once, directly to their new location, based on spatial criteria. The model therefore stops after all possible relocations have been made.
+
+For experiments, users can run multiple simulations using BehaviorSpace. After each run, any of the export functions can be called to produce the desired outputs. However, it is important to note that NetLogo overwrites output files if they are stored in the same folder. To avoid this, users should configure the model to move the results into a different folder or rename them systematically before the next run.
 
 ## RELATED MODELS
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+This model is conceptually related to the Schelling Segregation Model included in the NetLogo Models Library. While this model does not simulate segregation directly, both approaches deal with how household location choices shape urban spatial patterns.
 
 ## CREDITS AND REFERENCES
 
@@ -1051,10 +1125,28 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="ExperimentTest" repetitions="6" runMetricsEveryStep="true">
+  <experiment name="ExperimentTest" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <postRun>export-raster-group</postRun>
+    <postRun>export-raster-group
+porcentages</postRun>
+    <enumeratedValueSet variable="Expansion_Type">
+      <value value="&quot;Sin&quot;"/>
+      <value value="&quot;Normal&quot;"/>
+      <value value="&quot;Extendida&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="RunMode">
+      <value value="&quot;Normal&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="not_available">
+      <value value="0"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="3" sequentialRunOrder="false" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <postRun>export-raster-group
+porcentages</postRun>
     <enumeratedValueSet variable="Expansion_Type">
       <value value="&quot;Extendida&quot;"/>
     </enumeratedValueSet>
@@ -1062,7 +1154,7 @@ NetLogo 6.4.0
       <value value="&quot;Infra and Transport&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="not_available">
-      <value value="50"/>
+      <value value="0"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
