@@ -49,7 +49,6 @@ to setup
   ]
   ifelse (not doc-loaded?) or (Expansion_Type != last-exp-type) [
   clear-all
-  ;resize-world -150 150 -150 150
   reset-ticks
   clear-turtles
   set moved-count 0
@@ -127,13 +126,13 @@ to set_limit_available
 end
 
 to cargar-shapefiles
-  set area-shp gis:load-dataset "To_Model/areaproject2.shp"
+  set area-shp gis:load-dataset "To_Model/areaproject.shp" ;area del proyecto
   ask patches gis:intersecting area-shp [
     set pcolor gray - 2
   ]
   ; Call everything!
-  set manzanas-shp gis:load-dataset "To_Model/MANZANA_CAT7.shp"
-  set flood-raster gis:load-dataset "To_Model/floodedRast.asc"
+  set manzanas-shp gis:load-dataset "To_Model/MANZANA.shp" ;datos socioeconomicos
+  set flood-raster gis:load-dataset "To_Model/floodedRast.asc" ;datos de inundacion
   gis:apply-raster flood-raster flood
   gis:apply-coverage manzanas-shp "GRUPO" estrato
 
@@ -145,7 +144,7 @@ to cargar-shapefiles
     ][gis:apply-coverage manzanas-shp "USOEXTEND" uso]
   ]
 
-  ask patches [ ; modificado para eficiencia, evitar preguntar a todos los patches
+  ask patches [
     set turh [0 0 0 0 0 0]
     if member? flood [0 1] [
       set state flood
@@ -164,12 +163,11 @@ to cargar-shapefiles
 end
 
 to cargar-raster
-  ;; Load and apply raster data
-  set infra_servicios-raster gis:load-dataset "To_Model/infra_servicios3.asc"
-  ;gis:apply-coverage infra_servicios-raster "band1" infra_servicios
+  ;; Here you should put the geographical data that is going to be used by agents when they are making decitions.
+  set infra_servicios-raster gis:load-dataset "To_Model/infra_servicios.asc" ; infraestructura
   gis:apply-raster infra_servicios-raster infra_servicios
 
-  set infra_transporte-raster gis:load-dataset "To_Model/infra_transporte.asc"
+  set infra_transporte-raster gis:load-dataset "To_Model/infra_transporte.asc" ; transporte
   gis:apply-raster infra_transporte-raster infra_transporte
 
 end
@@ -214,14 +212,6 @@ to createHumans
   ask turtles [;1   2     3     4      5      6
     set color item (group - 1) colores
   ]
-
-  ;print (word "Group 1: " count turtles with [group = 1])
-  ;print (word "Group 2: " count turtles with [group = 2])
-  ;print (word "Group 3: " count turtles with [group = 3])
-  ;print (word "Group 4: " count turtles with [group = 4])
-  ;print (word "Group 5: " count turtles with [group = 5])
-  ;print (word "Group 6: " count turtles with [group = 6])
-
   set total-humans count turtles
   set out_city [0 0 0 0 0 0]
 end
@@ -260,7 +250,7 @@ to go
 end
 
 to move
-  ask turtles [
+  ask turtles [ ; Null model
     set moved? false
     ; set diffcount count (turtles-on neighbors) with [group != [group] of myself]
 
@@ -287,7 +277,7 @@ to move
 end
 
 to moveEx
-  ask turtles [
+  ask turtles [ ; Our model considering infrastructure and transport
     set moved? false
     ifelse member? group [5 6][
       if [flood] of patch-here = 1 [
@@ -361,16 +351,6 @@ to export-human-locations
     print (word "Shapefile exported to ")
 end
 
-to export-raster
-;  let full-path (word "Outputs/human-locations-run-" behaviorspace-run-number
-;                 "-type-" Expansion_Type
-;                 "-mode-" RunMode ".asc")
-;
-;  let test  gis:patch-dataset turtles_here_count
-;  gis:store-dataset test full-path
-;  print (word "Raster exported to" full-path)
-end
-
 to export-raster-group
   let grupos [1 2 3 4 5 6]
   foreach grupos [ g ->
@@ -422,27 +402,17 @@ to export-matrix-groups
     let line reduce [ [a b] -> (word a ";" b) ] row-strings
     file-print line
   ]
-
   file-close
 end
 
 to porcentages
-  ; ruta del archivo
   let csv-path "Outputs/perc.csv"
-
-  ; comprobar si el archivo existe
   let file-exists file-exists? csv-path
-
-  ; abrir archivo en modo escritura (si existe, NetLogo no lo borra hasta cerrar)
   file-open csv-path
-
-  ; solo escribir cabecera si el archivo NO existía
   if not file-exists [
     file-type "run,Expansion_Type,RunMode,grupo,residencial_flood0,expansion_flood0,flood1"
     file-print ""
   ]
-
-  ; iterar sobre cada grupo distinto
   foreach remove-duplicates [group] of turtles [
     g ->
       let residencial_flood0 count turtles with [
@@ -454,8 +424,6 @@ to porcentages
       let flood1 count turtles with [
         group = g and flood = 1
       ]
-
-      ; escribir fila
       file-type (word behaviorspace-run-number "," Expansion_Type "," RunMode ","
                  g "," residencial_flood0 "," expansion_flood0 "," flood1)
       file-print ""
@@ -688,7 +656,7 @@ CHOOSER
 Expansion_Type
 Expansion_Type
 "Sin" "Normal" "Extendida"
-2
+0
 
 TEXTBOX
 871
