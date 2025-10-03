@@ -32,11 +32,7 @@ This repository contains an **Agent-Based Model (ABM)** implemented in **NetLogo
 
     - After each run, export functions can be called to generate outputs.
 
-    - ⚠️ By default, NetLogo overwrites output files when stored in the same folder. To avoid this, users should:
-
-        - Move results into a different folder after each run, or
-
-        - Use behaviorspace-run-number (or a similar parameter) to give unique names to output files.
+    - ⚠️ By default, NetLogo overwrites output files when stored in the same folder. To avoid this, users should move results into a different folder after each run
 
 ---
 
@@ -44,13 +40,13 @@ This repository contains an **Agent-Based Model (ABM)** implemented in **NetLogo
 
 1. Open the model in NetLogo.
 
-2. Configure parameters (e.g., socioeconomic distribution, flood risk intensity).
+2. Configure parameters (e.g., Expansio_Type, RunMode, not_available).
 
 3. Use BehaviorSpace to run experiments:
 
     - Set desired number of runs and parameter sweeps.
 
-    - Add export commands (e.g., export-world, export-output) at the end of each run.
+    - Add export commands (e.g., export-matrix-groups, porcentages) at the end of each run.
 
     - Ensure unique file naming to prevent overwriting.
 
