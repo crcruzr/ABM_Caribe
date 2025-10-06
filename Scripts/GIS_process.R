@@ -1,6 +1,7 @@
 library(terra)
 library(tmap)
 library(tidyverse)
+library(sf)
 
 setwd('..')
 getwd()
@@ -42,7 +43,7 @@ applExt$flood <- ifelse( applExt$COD_DANE_A  %in% inter_pol$COD_DANE_A, 1, 0)
 table(applExt$flood)
 
 
-##Residencial
+##Residential
 cat <- as.data.frame(applExt) |>
   mutate(Uso = pmap_chr(list(Residencial =TP9_1_USO,
                              mixto = TP9_2_USO, 
@@ -128,12 +129,12 @@ writeVector(applE2, 'MANZANA_CAT2.shp', overwrite = T)
 writeVector(applE2P, 'MANZANA_CAT2p.shp', overwrite = T)
 
 writeVector(x, 'MANZANA_CAT2_points.shp', overwrite = T)
-#applE2 <- vect('MANZANA_CAT2.shp')
 
 
-## add other dimensions
+#------- Add other dimensions
 
-rasfil <- list.files('Capas_Raster', pattern = '.tif$', full.names = T)
+applE2 <- vect('To_Model/MANZANA_CAT2.shp')
+rasfil <- list.files('To_Model/Capas_Raster', pattern = '.tif$', full.names = T)
 
 r1 <- project(rast(rasfil[1]),crs(applE2))
 r1 <-  crop(mask(r1, applE2),applE2)
