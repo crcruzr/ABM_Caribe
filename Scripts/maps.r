@@ -138,13 +138,13 @@ for (i in 1:9) {
       labels.cardinal = TRUE,
       labels.inside.frame = FALSE) +
     tm_shape(rastbin[[i]]) +
-      tm_raster(
-        palette = palette6,
-        title = "SocioEconomic Groups",
-        legend.show = show_legend,
-        labels = c("One", "Two", "Three", "Four", "Five", "Six"),
-         breaks = 1:7
-      ) +
+        tm_raster(
+            palette = palette6,
+            title = "SocioEconomic Groups",
+            legend.show = show_legend,
+            labels = c("One", "Two", "Three", "Four", "Five", "Six"),
+            breaks = 1:7
+        ) +
     tm_layout(
       legend.show = show_legend,
       bg.color = "white"
