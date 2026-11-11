@@ -6,16 +6,17 @@ library(sf)
 
 setwd('..')
 getwd()
-applEP <- vect('To_model/MANZANA_CAT2p.shp')
+applEP <- vect('To_model/MANZANA_CAT6.shp')
 applE <-  vect('To_model/10062025Manzanas_Econom/Manzanas_Econom.shp') #Manzanas_Econom.shp
 crs(applE)
 
 applEP2 <- merge(applEP, applE[, c("OBJECTID", "Cat_econom")], by = "OBJECTID", all.x = TRUE)
 
-names(applEP2)[names(applEP2) == "Cat_econom"] <- "GRUPO"
-applEP2$GRUPO <- paste0("G", applEP2$GRUPO)
+names(applEP2)[names(applEP2) == "Cat_econom"] <- "GRUPO2"
+applEP2$GRUPO2 <- paste0("G", applEP2$GRUPO2)
+setdiff(applEP2$GRUPO, applEP2$GRUPO2)
 
-peres3 <- as.data.frame(table(applEP2$GRUPO[applEP2$flood == 1]))
+peres3 <- as.data.frame(table(applEP2$GRUPO[applEP2$FLOOD == 1]))
 peres3$per <- round(((peres3$Freq * 100)/sum(peres3$Freq)),1)
 
 #  Var1 Freq  per

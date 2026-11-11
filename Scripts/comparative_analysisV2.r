@@ -8,7 +8,7 @@ fl <- list.files('To_Model', pattern = '.shp$', full.names = T)
 
 aoi<-  vect(fl[1]) #areaproject.shp"
 inund <-  vect(fl[4]) #inundacionproject.shp
-appl <-  vect(fl[5]) #"MANZANA_CA2.shp"   
+appl <-  vect(fl[5]) #"MANZANA_CA6.shp"   
 
 map_template <- function(raster_layer, title_text, group_label, aoi) {
   
@@ -53,6 +53,7 @@ for(t in 1:length(type) ){
       Gpart_mask <- rasterize(Gpart, fil_NA, field = 1, background = NA)
       Gpart_mask[Gpart_mask == 1] <- 0
       
+      
       # --- Compute consolidated rasters ---
       mean_r <- app(fil_NA, fun = function(x) mean(x, na.rm = TRUE))
       sd_r   <- app(fil_NA, sd, na.rm = TRUE)
@@ -92,7 +93,7 @@ for(t in 1:length(type) ){
 } # type
 
 # --- Save consolidated summary ---
-write.csv(summary_table_all, file.path(out_dir, "Consolidated_Summary2.csv"), row.names = FALSE)
+write.csv(summary_table_all, file.path(out_dir, "Table_S1.csv"), row.names = FALSE)
 
 
 mean_stack1 <- rast(list.files(paste0(getwd(), "/Outputs/Consolidated_Rasters"), 
@@ -169,7 +170,6 @@ for (t in type) {
 
 #statistical steps ----------
 #Question 1 Do restriction and scenario affect how densely households settle?
-
 t<-1
 n <-1
 g <-1
@@ -215,7 +215,6 @@ for(t in 1:length(type) ){
 
 nrow(summary_interactions)
 
-
 summary_interactions$type <- factor(summary_interactions$type,
                                      levels = c( "Sin", "Normal", "Extendida"))
 summary_interactions$NotAv <- factor(summary_interactions$NotAv,
@@ -231,8 +230,6 @@ summary_interactions <- na.omit(summary_interactions)
 model <- lm(Mean ~ type * NotAv, data = summary_interactions)
 coeftest(model, vcov = vcovHC(model, type = "HC3"))
 
-
-
 summary_table <- summary_interactions %>%
   group_by(type, NotAv) %>%
   summarise(mean_occupancy = mean(Mean, na.rm = TRUE)) %>%
@@ -245,7 +242,6 @@ ggplot(summary_table, aes(x = factor(NotAv), y = mean_occupancy, fill = type)) +
 
 ## question 2
 #Do household groups (G1–G6) react differently to those restrictions?
-# Your model
 model <- lm(Mean ~ group * type * NotAv, data = summary_interactions)
 
 # Create emmeans objects for each comparison type

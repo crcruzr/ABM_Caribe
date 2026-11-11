@@ -7,14 +7,15 @@ library(purrr)
 #--- Calculate the number of household per "estrato" using an spacial approach
 
 ##------- vect files
-setwd('..')
+#setwd('..')
 getwd()
 
 fl <- list.files('To_Model', pattern = '.shp$', full.names = T)
 
 aoi <-  vect(fl[1]) #areaproject2.shp"
 inund <-  vect(fl[3]) #inundacionproject.shp
-appl <-  vect(fl[5]) #"MGN_ANM_MANZANA.shp"
+appl <-  vect(fl[6]) #"MGN_ANM_MANZANA.shp"
+#appl <-  vect(fl[5]) #"MGN_ANM_MANZANA6.shp"
 applEP2 <- project(appl, crs(aoi))
 
 ##------- raster files
@@ -80,7 +81,7 @@ for (i in 1:nrow(polygons)) {
     polygons2$areaTot_m2[i] <- mr.i$areaTot_m2
     polygons2$area_m2[i] <- mr.i$area_m2
     polygons2$area_percent[i] <- mr.i$area_percent
-    polygons2$COD_DANE_A[i] <- mr.i$COD_DANE_A
+    polygons2$OBJECTID[i] <- mr.i$OBJECTID
 
   }
   setTxtProgressBar(pb, i)  # update progress bar
@@ -93,7 +94,7 @@ df_to_ccHsouse2 <- df_to_ccHsouse[df_to_ccHsouse$empty == 'not', ]
 head(df_to_ccHsouse)
 table(df_to_ccHsouse$empty)
 
-## Matrix with: Categories based in the type of "uso", and also the most recurrent category pero polygon and their number of housedholds there.
+## Matrix with: Categories based in the type of "uso", and also the most recurrent category per polygon and their number of housedholds there.
 dfccHouse <- as.data.frame(df_to_ccHsouse2) |>
   mutate(Uso = pmap_chr(list(
       Residencial = TP9_1_USO,
@@ -159,11 +160,8 @@ tograph <- dfccHouse |>
 tographF <- dfccHouse |>
   filter(mihouseold > 0)
 
-
-
 write.csv(tographF, 'tables/pixelapproachFull.csv')
 write.csv(tograph, 'tables/pixelapproach_80.csv')
-
 
 ggplot(tograph, aes(x = Estrato, y = mihouseold)) +
   geom_violin(fill = "skyblue", alpha = 0.7) +
