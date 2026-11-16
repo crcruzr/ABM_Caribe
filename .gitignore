@@ -3,8 +3,9 @@ To_Model/*
 Documents/*
 Outputs/*
 Graphs/*
-plots/other/
-tables/other/
+plots/Other/
+tables/Other/
+Scripts/Other/
 
 # But keep the .gitkeep file
 !To_Model/.gitkeep
