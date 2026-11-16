@@ -3,10 +3,7 @@ To_Model/*
 Documents/*
 Outputs/*
 Graphs/*
-plots/Figure1.tiff
-plots/Figure2.tiff
-plots/Figure3.tif
-plots/Figure4.tiff
+plots/other/*
 
 # But keep the .gitkeep file
 !To_Model/.gitkeep

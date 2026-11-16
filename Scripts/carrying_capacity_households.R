@@ -227,7 +227,7 @@ df_part2 <- tographF %>%
     max = max(mihouseold, na.rm = TRUE),
     sd = sd(mihouseold, na.rm = TRUE)
   )
-write.csv(df_part2, 'tables/summary_household_pixelapproachFull.csv')
+write.csv(df_part2, 'tables/summary_household_pixelapproachFull.csv') #version used in the simulation
 
 
 ###----- Using all the households 
