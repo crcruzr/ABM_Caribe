@@ -332,7 +332,7 @@ pMMS_join <- ggplot() +
   # Model
   geom_pointrange(data = summary_plot.m,
     aes(
-      x = factor(Group), y = median,  ymin = q25,  ymax = q75,  colour = "simulations"),
+      x = factor(Group), y = median,  ymin = q25,  ymax = q75,  colour = "Behavioural model"),
       position = position_nudge(x = -0.2), linewidth = 0.7, fatten = 1
   ) +
   # Null (orange)
@@ -345,13 +345,13 @@ pMMS_join <- ggplot() +
     scale_colour_manual(
     name = NULL,
     values = c(
-      "simulations" = "#3182BD",
+      "Behavioural model" = "#3182BD",
       "Null model" = "#E69F00"
     )
   ) +
   facet_grid(Type ~ NotAv) +
   labs(
-    x = "Model category",
+    x = "Socioeconomic group",
     y = "Median Moran's I"
   ) +
   theme_bw(base_size = 13) +
@@ -373,7 +373,7 @@ pSMS_join <- ggplot() +
   # Model
   geom_pointrange(data = summary_plot.s,
     aes(
-      x = factor(Group), y = median,  ymin = q25,  ymax = q75,  colour = "simulations"),
+      x = factor(Group), y = median,  ymin = q25,  ymax = q75,  colour = "Behavioural model"),
       position = position_nudge(x = -0.2), linewidth = 0.7, fatten = 1
   ) +
   # Null (orange)
@@ -386,13 +386,13 @@ pSMS_join <- ggplot() +
     scale_colour_manual(
     name = NULL,
     values = c(
-      "simulations" = "#3182BD",
+      "Behavioural model" = "#3182BD",
       "Null model" = "#E69F00"
     )
   ) +
   facet_grid(Type ~ NotAv) +
   labs(
-    x = "Model category",
+    x = "Socioeconomic group",
     y = "Median Shannon's H"
   ) +
   theme_bw(base_size = 13) +
@@ -408,7 +408,6 @@ pSMS_join <- ggplot() +
 
 pSMS_join
 
-modeljoin <- (pMMS_join+theme_paper()) +(pSMS_join+theme_paper()) +  plot_layout(axes = "collect", axis_titles = "collect" )+ plot_annotation(tag_levels = 'A')
-modeljoin2 <- (pMMS_join) +(pSMS_join) +  plot_layout(axes = "collect", axis_titles = "collect" )+ plot_annotation(tag_levels = 'A')
+modeljoin <- (pSMS_join+theme_paper()) +(pMMS_join+theme_paper()) +  plot_layout(axes = "collect", axis_titles = "collect" )+ plot_annotation(tag_levels = 'A')
 
-ggsave('plots/shan_moranJoin2.png', plot = modeljoin2+ plot_annotation(tag_levels = 'A'), width = 8, height = 6, units = "in", dpi = 300)
+ggsave('plots/shan_moranJoin.png', plot = modeljoin+ plot_annotation(tag_levels = 'A'), width = 8, height = 6, units = "in", dpi = 300)
