@@ -58,24 +58,23 @@ for(t in 1:length(type)) {
       # ===== Statistics across iterations =====
       r_stack <- rast(files_found)
 
-      cells_per_run <- global(
-        ifel(r_stack > 0, 1, NA),
-        "sum",
-        na.rm = TRUE
-      )[,1]
-      # supp Mat 3
-      summary_table <- rbind(
-        summary_table,
-        data.frame(
-          Scenario    = type[t],
-          Constraints = NotAv[n],
-          Group       = g,
-          Mean        = mean(cells_per_run, na.rm = TRUE),
-          SD          = sd(cells_per_run, na.rm = TRUE),
-          CV          = 100 * sd(cells_per_run, na.rm = TRUE) /
-                        mean(cells_per_run, na.rm = TRUE),
-          Minimum     = min(cells_per_run, na.rm = TRUE),
-          Maximum     = max(cells_per_run, na.rm = TRUE)))
+        vals <- values(r_stack)
+
+          vals <- as.vector(vals)
+          vals <- vals[!is.na(vals)]
+          vals <- vals[vals > 0]
+
+          summary_table <- rbind(
+            summary_table,
+            data.frame(
+              Scenario    = type[t],
+              Constraints = NotAv[n],
+              Group       = g,
+              Median      = median(vals),
+              SD          = sd(vals),
+              CV          = 100 * sd(vals) / mean(vals),
+              Minimum     = min(vals),
+              Maximum     = max(vals)))
 
       fil <- sum(r_stack)
       fil_NA <- classify(fil, cbind(0, NA))
@@ -106,7 +105,7 @@ for(t in 1:length(type)) {
 close(pb)
 
 #summary_tablec <- summary_table
-#summary_table <- summary_tablec
+summary_table <- summary_tablec
 
 table(summary_table$Scenario)
 
