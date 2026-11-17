@@ -59,16 +59,7 @@ for(t in 1:length(type) ){
 rastbin <- rast(list.files((out_dir), full.names = T))
 
 ###Plot it
-palette6 <- c(
-"#E69F00", # orange
-  "#56B4E9", # sky blue
-  "#009E73", # green
-  "#F0E442", # yellow
-  "#D55E00", # dark orange/red
-  "#CC79A7"  # magenta
-)
-
-palette6 <- "#00204DFF" "#31446BFF" "#666970FF" "#958F78FF" "#CBBA69FF" "#FFEA46FF"
+palette6 <- c("#00204DFF", "#31446BFF", "#666970FF", "#958F78FF", "#CBBA69FF", "#FFEA46FF")
 
 plot(rastbin[[1]], col = palette6, axes = FALSE, box = FALSE)
 
@@ -179,10 +170,10 @@ tm_layout(
     map_list[[i]] <- map_i
 }
 
+## Add letters to plot
 panel_letters <- paste0("(", letters[1:9], ")")
 
 for (i in seq_along(map_list)) {
-
   map_list[[i]] <- map_list[[i]] +
     tm_credits(
       panel_letters[i],
